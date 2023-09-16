@@ -1,0 +1,135 @@
+{
+	"name": "df_cases_and_deaths",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_cases_and_Deaths",
+						"type": "DatasetReference"
+					},
+					"name": "casesandeathsSource"
+				},
+				{
+					"dataset": {
+						"referenceName": "ds_raw_lookup",
+						"type": "DatasetReference"
+					},
+					"name": "LookupSource"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "DS_CasesAndDeaths_Transformed",
+						"type": "DatasetReference"
+					},
+					"name": "ECDCsink"
+				}
+			],
+			"transformations": [
+				{
+					"name": "FilterEuropedata"
+				},
+				{
+					"name": "SelectRequiredCasesAndDeathsColumns"
+				},
+				{
+					"name": "CasesAndDeathsPivote"
+				},
+				{
+					"name": "CasesAndDeathsLookup"
+				},
+				{
+					"name": "CasesAndDeathsProcessed"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          country as string,",
+				"          country_code as string,",
+				"          continent as string,",
+				"          population as integer,",
+				"          indicator as string,",
+				"          daily_count as short,",
+				"          date as date,",
+				"          rate_14_day as double,",
+				"          source as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     partitionBy('hash', 1)) ~> casesandeathsSource",
+				"source(output(",
+				"          country as string,",
+				"          country_code_2_digit as string,",
+				"          country_code_3_digit as string,",
+				"          continent as string,",
+				"          population as integer",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     limit: 100,",
+				"     ignoreNoFilesFound: false) ~> LookupSource",
+				"casesandeathsSource filter(continent==\"Europe\" && not(isNull(country_code))) ~> FilterEuropedata",
+				"FilterEuropedata select(mapColumn(",
+				"          country,",
+				"          country_code,",
+				"          population,",
+				"          indicator,",
+				"          daily_count,",
+				"          reported_date = date,",
+				"          source",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> SelectRequiredCasesAndDeathsColumns",
+				"SelectRequiredCasesAndDeathsColumns pivot(groupBy(country,",
+				"          country_code,",
+				"          population,",
+				"          reported_date,",
+				"          source),",
+				"     pivotBy(indicator, ['deaths', 'confirmed cases']),",
+				"     count = sum(daily_count),",
+				"     columnNaming: '$V_$N',",
+				"     lateral: false) ~> CasesAndDeathsPivote",
+				"CasesAndDeathsPivote, LookupSource lookup(CasesAndDeathsPivote@population == LookupSource@population",
+				"     && CasesAndDeathsPivote@country == LookupSource@country,",
+				"     multiple: true,",
+				"     broadcast: 'auto')~> CasesAndDeathsLookup",
+				"CasesAndDeathsLookup select(mapColumn(",
+				"          country = CasesAndDeathsPivote@country,",
+				"          country_code_2_digit,",
+				"          country_code_3_digit,",
+				"          population = CasesAndDeathsPivote@population,",
+				"          reported_date,",
+				"          cases_count = {confirmed cases_count},",
+				"          deaths_count,",
+				"          source",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> CasesAndDeathsProcessed",
+				"CasesAndDeathsProcessed sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          country as string,",
+				"          country_code as string,",
+				"          continent as string,",
+				"          population as string,",
+				"          indicator as string,",
+				"          daily_count as string,",
+				"          date as string,",
+				"          rate_14_day as string,",
+				"          source as string",
+				"     ),",
+				"     partitionFileNames:['CasesAndDeaths.csv'],",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     partitionBy('hash', 1)) ~> ECDCsink"
+			]
+		}
+	}
+}

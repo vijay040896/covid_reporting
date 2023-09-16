@@ -1,0 +1,33 @@
+{
+	"name": "tr_ingest_ECDC_data",
+	"properties": {
+		"description": "ingests hospital admissions data from ecdc ",
+		"annotations": [],
+		"runtimeState": "Stopped",
+		"pipelines": [
+			{
+				"pipelineReference": {
+					"referenceName": "pl_Ingest_Ecdc_Data",
+					"type": "PipelineReference"
+				}
+			}
+		],
+		"type": "ScheduleTrigger",
+		"typeProperties": {
+			"recurrence": {
+				"frequency": "Day",
+				"interval": 1,
+				"startTime": "2023-01-11T23:36:00Z",
+				"timeZone": "UTC",
+				"schedule": {
+					"minutes": [
+						5
+					],
+					"hours": [
+						18
+					]
+				}
+			}
+		}
+	}
+}
