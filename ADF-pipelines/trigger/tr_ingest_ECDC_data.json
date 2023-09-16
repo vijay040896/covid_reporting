@@ -3,7 +3,7 @@
 	"properties": {
 		"description": "ingests hospital admissions data from ecdc ",
 		"annotations": [],
-		"runtimeState": "Stopped",
+		"runtimeState": "Started",
 		"pipelines": [
 			{
 				"pipelineReference": {
